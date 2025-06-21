@@ -27,8 +27,8 @@ def send_media_url_to_api(media_url):
     
     payload = {
         "input_value": media_url,  # The MediaUrl0 value
-        "output_type": "text",     # Specifies the expected output format
-        "input_type": "text"       # Specifies the input format
+        "output_type": "chat",     # Specifies the expected output format
+        "input_type": "chat"       # Specifies the input format
     }
     
     headers = {

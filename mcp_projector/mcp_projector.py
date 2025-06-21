@@ -22,19 +22,23 @@ except ImportError:
 # Configuration variables from environment
 project_folders_root = os.getenv("PROJECT_FOLDERS_ROOT")
 projects_json_file_path = os.getenv("PROJECTS_JSON_FILE_PATH")
+# Filter strategy: "AND" or "OR" (default: "AND")
+filter_strategy = os.getenv("FILTER_STRATEGY", "AND").upper()
 
 # Create the FastMCP server instance
 mcp = FastMCP("Projector")
 
 def load_and_filter_projects(filter_keywords: List[str]) -> List[Dict[str, Any]]:
     """
-    Load projects from JSON file and filter by keywords using OR strategy.
+    Load projects from JSON file and filter by keywords using configurable strategy.
     
     Args:
         filter_keywords: List of keywords to filter by (case-insensitive)
         
     Returns:
-        List of projects that match any of the filter keywords
+        List of projects that match the filter keywords based on the configured strategy
+        - AND strategy: project must match ALL filter keywords
+        - OR strategy: project must match ANY filter keyword
     """
     try:
         with open(projects_json_file_path, 'r', encoding='utf-8') as f:
@@ -57,10 +61,20 @@ def load_and_filter_projects(filter_keywords: List[str]) -> List[Dict[str, Any]]
             title_words = project.get('title', '').lower().split()
             all_searchable_terms = project_keywords + title_words
             
-            # OR strategy: if any filter keyword matches any project term
-            if any(filter_kw in term for filter_kw in filter_keywords_lower 
-                   for term in all_searchable_terms):
-                filtered_projects.append(project)
+            if filter_strategy == "AND":
+                # AND strategy: project must match ALL filter keywords
+                matches_all = True
+                for filter_kw in filter_keywords_lower:
+                    if not any(filter_kw in term for term in all_searchable_terms):
+                        matches_all = False
+                        break
+                if matches_all:
+                    filtered_projects.append(project)
+            else:
+                # OR strategy: if any filter keyword matches any project term
+                if any(filter_kw in term for filter_kw in filter_keywords_lower 
+                       for term in all_searchable_terms):
+                    filtered_projects.append(project)
         
         return filtered_projects
         
@@ -76,13 +90,18 @@ def load_and_filter_projects(filter_keywords: List[str]) -> List[Dict[str, Any]]
 
 @mcp.tool
 def find_projects(keywords: list[str]) -> str:
-    """Find projects based on a list of keywords using OR strategy.
+    """Find projects based on a list of keywords using configurable strategy.
     
     Args:
         keywords: List of keywords to search for (case-insensitive)
         
     Returns:
         JSON string containing matching projects with only their IDs and titles
+        
+    Note:
+        The filtering strategy is configurable via FILTER_STRATEGY environment variable:
+        - "AND": project must match ALL keywords (default)
+        - "OR": project must match ANY keyword
     """
     filtered_projects = load_and_filter_projects(keywords)
     
@@ -96,13 +115,15 @@ def find_projects(keywords: list[str]) -> str:
     
     # Format the results for better readability
     if not filtered_results:
+        strategy_text = "all" if filter_strategy == "AND" else "any"
         return json.dumps({
-            "message": f"No projects found matching keywords: {', '.join(keywords)}",
+            "message": f"No projects found matching {strategy_text} keywords: {', '.join(keywords)} (using {filter_strategy} strategy)",
             "projects": []
         }, indent=2)
     
+    strategy_text = "all" if filter_strategy == "AND" else "any"
     result = {
-        "message": f"Found {len(filtered_results)} projects matching keywords: {', '.join(keywords)}",
+        "message": f"Found {len(filtered_results)} projects matching {strategy_text} keywords: {', '.join(keywords)} (using {filter_strategy} strategy)",
         "projects": filtered_results
     }
     
