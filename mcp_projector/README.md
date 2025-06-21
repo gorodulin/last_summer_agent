@@ -56,6 +56,29 @@ The server will start on `http://127.0.0.1:8000/sse`
    - Returns projects matching the keywords based on the configured strategy
    - Searches both project keywords and title words
 
+2. **create_new_project_folder()** - Create a new project folder with current date
+   - Creates a folder named using the format `pYYYYMMDDa` (e.g., `p20250621a`)
+   - Uses the current date automatically
+   - Creates the folder in the `PROJECT_FOLDERS_ROOT` directory
+   - Will not create the folder if it already exists
+
+3. **create_readme_in_folder(folder_path, title, keywords)** - Create a README.md file with template
+   - Creates a README.md file in the specified folder
+   - Uses a predefined template with title and keywords
+   - Keywords are automatically prefixed with # (e.g., #python #web)
+   - Will not overwrite existing README.md files
+
+## README Template Example
+
+When using the `create_readme_in_folder` tool with title "My Project" and keywords ["python", "web", "api"], the generated README.md will look like:
+
+```markdown
+# My Project
+
+> **Keywords**: #python #web #api
+
+```
+
 ### Available Resources
 
 1. **projector://status** - Returns server status and version information
@@ -77,6 +100,18 @@ async def test_server():
         # Test find_projects tool with AND strategy
         result = await client.call_tool("find_projects", {"keywords": ["python", "web"]})
         print(f"Projects Result: {result.text}")
+        
+        # Test create_new_project_folder tool
+        result = await client.call_tool("create_new_project_folder", {})
+        print(f"Create Folder Result: {result.text}")
+        
+        # Test create_readme_in_folder tool
+        result = await client.call_tool("create_readme_in_folder", {
+            "folder_path": "/path/to/project/folder",
+            "title": "My Project",
+            "keywords": ["python", "web", "api"]
+        })
+        print(f"Create README Result: {result.text}")
         
         # Test status resource
         resource = await client.read_resource("projector://status")

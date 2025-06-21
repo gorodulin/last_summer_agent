@@ -8,6 +8,7 @@ that responds with "hello world" functionality.
 
 import json
 import os
+from datetime import datetime
 from typing import List, Dict, Any
 from fastmcp import FastMCP
 
@@ -141,7 +142,157 @@ def get_status():
 @mcp.prompt
 def welcome_prompt() -> str:
     """Generate a welcome prompt for the projector server."""
-    return "Welcome to the MCP Projector Server! You can use the find_projects tool to search for projects by keywords."
+    return "Welcome to the MCP Projector Server! Available tools: find_projects (search projects by keywords), create_new_project_folder (create date-based project folders), and create_readme_in_folder (generate README.md files with templates)."
+
+def create_project_folder() -> Dict[str, Any]:
+    """
+    Create a new project folder in PROJECT_FOLDERS_ROOT with naming scheme pYYYYMMDDa.
+    
+    Returns:
+        Dict containing status, message, and folder_path information
+    """
+    if not project_folders_root:
+        return {
+            "status": "error",
+            "message": "PROJECT_FOLDERS_ROOT environment variable not set",
+            "folder_path": None
+        }
+    
+    if not os.path.exists(project_folders_root):
+        return {
+            "status": "error", 
+            "message": f"PROJECT_FOLDERS_ROOT directory does not exist: {project_folders_root}",
+            "folder_path": None
+        }
+    
+    # Generate folder name with current date in pYYYYMMDDa format
+    current_date = datetime.now()
+    folder_name = f"p{current_date.strftime('%Y%m%d')}a"
+    folder_path = os.path.join(project_folders_root, folder_name)
+    
+    # Check if folder already exists
+    if os.path.exists(folder_path):
+        return {
+            "status": "exists",
+            "message": f"Folder already exists: {folder_name}",
+            "folder_path": folder_path
+        }
+    
+    # Create the folder
+    try:
+        os.makedirs(folder_path)
+        return {
+            "status": "created",
+            "message": f"Successfully created folder: {folder_name}",
+            "folder_path": folder_path
+        }
+    except OSError as e:
+        return {
+            "status": "error",
+            "message": f"Failed to create folder {folder_name}: {str(e)}",
+            "folder_path": None
+        }
+
+@mcp.tool
+def create_new_project_folder() -> str:
+    """Create a new project folder with current date in the PROJECT_FOLDERS_ROOT directory.
+    
+    The folder will be named using the format pYYYYMMDDa (e.g., p20250621a for June 21, 2025).
+    If the folder already exists, it will not be created again.
+    
+    Returns:
+        JSON string containing the operation status, message, and folder path
+    """
+    result = create_project_folder()
+    return json.dumps(result, indent=2, ensure_ascii=False)
+
+def create_readme_file(folder_path: str, title: str, keywords: List[str]) -> Dict[str, Any]:
+    """
+    Create a README.md file in the specified folder with a template.
+    
+    Args:
+        folder_path: Path to the folder where README.md should be created
+        title: Title for the README
+        keywords: List of keywords to include in the template
+        
+    Returns:
+        Dict containing status, message, and file_path information
+    """
+    if not folder_path:
+        return {
+            "status": "error",
+            "message": "Folder path is required",
+            "file_path": None
+        }
+    
+    if not os.path.exists(folder_path):
+        return {
+            "status": "error",
+            "message": f"Folder does not exist: {folder_path}",
+            "file_path": None
+        }
+    
+    if not os.path.isdir(folder_path):
+        return {
+            "status": "error",
+            "message": f"Path is not a directory: {folder_path}",
+            "file_path": None
+        }
+    
+    readme_path = os.path.join(folder_path, "README.md")
+    
+    # Check if README.md already exists
+    if os.path.exists(readme_path):
+        return {
+            "status": "exists",
+            "message": f"README.md already exists in {folder_path}",
+            "file_path": readme_path
+        }
+    
+    # Format keywords with # prefix
+    formatted_keywords = " ".join(f"#{kw}" for kw in keywords) if keywords else ""
+    
+    # Create README content with template
+    readme_content = f"""# {title}
+
+> **Keywords**: {formatted_keywords}
+
+"""
+    
+    # Write README.md file
+    try:
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write(readme_content)
+        
+        return {
+            "status": "created",
+            "message": f"Successfully created README.md in {folder_path}",
+            "file_path": readme_path
+        }
+    except OSError as e:
+        return {
+            "status": "error",
+            "message": f"Failed to create README.md: {str(e)}",
+            "file_path": None
+        }
+
+@mcp.tool
+def create_readme_in_folder(folder_path: str, title: str, keywords: list[str] = None) -> str:
+    """Create a README.md file in the specified folder with a template.
+    
+    Args:
+        folder_path: Path to the folder where README.md should be created
+        title: Title for the README
+        keywords: Optional list of keywords to include (will be prefixed with #)
+        
+    Returns:
+        JSON string containing the operation status, message, and file path
+    """
+    if keywords is None:
+        keywords = []
+    
+    result = create_readme_file(folder_path, title, keywords)
+    return json.dumps(result, indent=2, ensure_ascii=False)
 
 def main():
     """Run the MCP server with SSE transport."""
