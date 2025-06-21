@@ -19,3 +19,4 @@ Next steps:
 - MCP for searching and creating projects
 - Custom component for turning audio into text and processing via LLM (Whisper-based)
 - Custom component for returning text responses via WhatsApp (Twilio-based)
+- Versions for OpenAI and Mistral LLMs are available
