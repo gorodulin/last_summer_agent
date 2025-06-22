@@ -8,6 +8,7 @@ that responds with "hello world" functionality.
 
 import json
 import os
+import subprocess
 from datetime import datetime
 from typing import List, Dict, Any
 from fastmcp import FastMCP
@@ -142,7 +143,7 @@ def get_status():
 @mcp.prompt
 def welcome_prompt() -> str:
     """Generate a welcome prompt for the projector server."""
-    return "Welcome to the MCP Projector Server! Available tools: find_projects (search projects by keywords), create_new_project_folder (create date-based project folders), and create_readme_in_folder (generate README.md files with templates)."
+    return "Welcome to the MCP Projector Server! Available tools: find_projects (search projects by keywords), create_project_and_open (complete project setup), and project_details (fetch README content from project folders)."
 
 def create_project_folder() -> Dict[str, Any]:
     """
@@ -192,19 +193,6 @@ def create_project_folder() -> Dict[str, Any]:
             "message": f"Failed to create folder {folder_name}: {str(e)}",
             "folder_path": None
         }
-
-@mcp.tool
-def create_new_project_folder() -> str:
-    """Create a new project folder with current date in the PROJECT_FOLDERS_ROOT directory.
-    
-    The folder will be named using the format pYYYYMMDDa (e.g., p20250621a for June 21, 2025).
-    If the folder already exists, it will not be created again.
-    
-    Returns:
-        JSON string containing the operation status, message, and folder path
-    """
-    result = create_project_folder()
-    return json.dumps(result, indent=2, ensure_ascii=False)
 
 def create_readme_file(folder_path: str, title: str, keywords: List[str]) -> Dict[str, Any]:
     """
@@ -276,22 +264,103 @@ def create_readme_file(folder_path: str, title: str, keywords: List[str]) -> Dic
             "file_path": None
         }
 
-@mcp.tool
-def create_readme_in_folder(folder_path: str, title: str, keywords: list[str] = None) -> str:
-    """Create a README.md file in the specified folder with a template.
+def create_project_with_readme(title: str, keywords: List[str]) -> Dict[str, Any]:
+    """
+    Create a new project folder with README and open it in Finder.
+    
+    This function combines:
+    1. Creating a new project folder with a README.md file with the provided title and keywords
+    2. Opening the folder in macOS Finder (non-blocking)
     
     Args:
-        folder_path: Path to the folder where README.md should be created
-        title: Title for the README
-        keywords: Optional list of keywords to include (will be prefixed with #)
+        title: Title for the project and README
+        keywords: List of keywords for the README
         
     Returns:
-        JSON string containing the operation status, message, and file path
+        Dict containing status, message, folder_path, and readme_path information
+    """
+    if not title:
+        return {
+            "status": "error",
+            "message": "Title is required",
+            "folder_path": None,
+            "readme_path": None
+        }
+    
+    # Step 1: Create project folder
+    folder_result = create_project_folder()
+    
+    if folder_result["status"] == "error":
+        return {
+            "status": "error",
+            "message": f"Failed to create project folder: {folder_result['message']}",
+            "folder_path": None,
+            "readme_path": None
+        }
+    
+    folder_path = folder_result["folder_path"]
+    
+    # Step 2: Create README.md in the new folder
+    readme_result = create_readme_file(folder_path, title, keywords)
+    
+    if readme_result["status"] == "error":
+        return {
+            "status": "partial",
+            "message": f"Project folder created but README failed: {readme_result['message']}",
+            "folder_path": folder_path,
+            "readme_path": None
+        }
+    
+    # Step 3: Open folder in macOS Finder (non-blocking)
+    try:
+        subprocess.Popen(["open", folder_path])
+        open_status = "opened"
+        open_message = "and opened in Finder"
+    except Exception as e:
+        open_status = "not_opened"
+        open_message = f"but failed to open in Finder: {str(e)}"
+    
+    # Determine overall status
+    if folder_result["status"] == "exists":
+        if readme_result["status"] == "exists":
+            status = "all_exist"
+            message = f"Project folder and README already exist {open_message}"
+        else:
+            status = "folder_exists_readme_created"
+            message = f"Project folder already existed, README created {open_message}"
+    else:
+        if readme_result["status"] == "exists":
+            status = "folder_created_readme_exists"
+            message = f"Project folder created, README already existed {open_message}"
+        else:
+            status = "all_created"
+            message = f"Project folder and README created successfully {open_message}"
+    
+    return {
+        "status": status,
+        "message": message,
+        "folder_path": folder_path,
+        "readme_path": readme_result["file_path"],
+        "open_status": open_status
+    }
+
+@mcp.tool
+def create_project_and_open(title: str, keywords: list[str] = None) -> str:
+    """Create a new project folder with README and open it in macOS Finder.
+    
+    This tool creates a new project
+    
+    Args:
+        title: Title for the project and README
+        keywords: Optional list of keywords for the README (will be prefixed with #)
+        
+    Returns:
+        JSON string containing the operation status, messages, and file paths
     """
     if keywords is None:
         keywords = []
     
-    result = create_readme_file(folder_path, title, keywords)
+    result = create_project_with_readme(title, keywords)
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 def main():
@@ -305,6 +374,107 @@ def main():
         host="127.0.0.1",
         port=8000
     )
+
+def get_project_readme(project_id: str) -> Dict[str, Any]:
+    """
+    Fetch README.md content from a project folder by project ID.
+    
+    Args:
+        project_id: The ID of the project folder to read from
+        
+    Returns:
+        Dict containing status, message, project_id, and readme_content
+    """
+    if not project_id:
+        return {
+            "status": "error",
+            "message": "Project ID is required",
+            "project_id": None,
+            "readme_content": None
+        }
+    
+    if not project_folders_root:
+        return {
+            "status": "error",
+            "message": "PROJECT_FOLDERS_ROOT environment variable not set",
+            "project_id": project_id,
+            "readme_content": None
+        }
+    
+    if not os.path.exists(project_folders_root):
+        return {
+            "status": "error",
+            "message": f"PROJECT_FOLDERS_ROOT directory does not exist: {project_folders_root}",
+            "project_id": project_id,
+            "readme_content": None
+        }
+    
+    # Construct project folder path
+    project_folder_path = os.path.join(project_folders_root, project_id)
+    
+    # Check if project folder exists
+    if not os.path.exists(project_folder_path):
+        return {
+            "status": "not_found",
+            "message": f"Project folder not found: {project_id}",
+            "project_id": project_id,
+            "readme_content": None
+        }
+    
+    if not os.path.isdir(project_folder_path):
+        return {
+            "status": "error",
+            "message": f"Project path is not a directory: {project_id}",
+            "project_id": project_id,
+            "readme_content": None
+        }
+    
+    # Construct README.md path
+    readme_path = os.path.join(project_folder_path, "README.md")
+    
+    # Check if README.md exists
+    if not os.path.exists(readme_path):
+        return {
+            "status": "no_readme",
+            "message": f"README.md not found in project: {project_id}",
+            "project_id": project_id,
+            "readme_content": None
+        }
+    
+    # Try to read README.md content
+    try:
+        with open(readme_path, 'r', encoding='utf-8') as f:
+            readme_content = f.read()
+        
+        return {
+            "status": "success",
+            "message": f"Successfully read README.md from project: {project_id}",
+            "project_id": project_id,
+            "readme_content": readme_content
+        }
+    except Exception as e:
+        return {
+            "status": "read_error",
+            "message": f"Failed to read README.md from project {project_id}: {str(e)}",
+            "project_id": project_id,
+            "readme_content": None
+        }
+
+@mcp.tool
+def project_details(project_id: str) -> str:
+    """Fetch README.md content from a project folder by project ID.
+    
+    This tool searches for a project folder in PROJECT_FOLDERS_ROOT and reads
+    its README.md file. It handles missing folders and files gracefully.
+    
+    Args:
+        project_id: The ID/name of the project folder to read from
+        
+    Returns:
+        JSON string containing the operation status, message, project_id, and README content
+    """
+    result = get_project_readme(project_id)
+    return json.dumps(result, indent=2, ensure_ascii=False)
 
 if __name__ == "__main__":
     main()
