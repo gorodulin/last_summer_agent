@@ -3,10 +3,9 @@
 > **Keywords:** #langflow #p20250620a #agent #llm #pipeline #workflow #whatsapp #twilio #whisper #openai #mistral #mcp #voice-assistant #speech-to-text #webhook #python #docker #hackathon #poc #project-management #personal-assistant #audio-processing #nlp #chatbot #automation #ngrok #ai-agent #voice-commands #project-tracker #eleven-labs #custom-components #langflow-components
 
 Langflow-based agent that keeps track of my personal projects.
+Implemented as a project for the ["Hacking Agents" Hackathon](https://lu.ma/hacking-agents-hackathon-london) (London, Jun 2025), sponsored by [Langflow](https://langflow.org), [Twilio](https://www.twilio.com), [Mistral](https://mistral.ai), and [Eleven Labs](https://elevenlabs.io).
 
-Implemented as a project for "Hacking Agents" Hackathon, sponsored by Langflow, Twilio, Mistral, Eleven Labs (London, Jun 2025).
-
-**IT IS A POC. NOT FOR PRODUCTION USE**
+**IT IS A PoC! NOT FOR PRODUCTION USE!**
 
 The workflow is triggered by WhatsApp voice message.
 
