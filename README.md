@@ -2,6 +2,10 @@
 
 Langflow-based agent that keeps track of my personal projects.
 
+Implemented as a project for "Hacking Agents" Hackathon, sponsored by Langflow, Twilio, Mistral, Eleven Labs (London, Jun 2025).
+
+**IT IS A POC. NOT FOR PRODUCTION USE**
+
 The workflow is triggered by WhatsApp voice message.
 
 It can:
