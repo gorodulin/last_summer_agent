@@ -1,5 +1,7 @@
 # "I know what I did last summer" Langflow agent.
 
+> **Keywords:** #langflow #p20250620a #agent #llm #pipeline #workflow #whatsapp #twilio #whisper #openai #mistral #mcp #voice-assistant #speech-to-text #webhook #python #docker #hackathon #poc #project-management #personal-assistant #audio-processing #nlp #chatbot #automation #ngrok #ai-agent #voice-commands #project-tracker #eleven-labs #custom-components #langflow-components
+
 Langflow-based agent that keeps track of my personal projects.
 
 Implemented as a project for "Hacking Agents" Hackathon, sponsored by Langflow, Twilio, Mistral, Eleven Labs (London, Jun 2025).
@@ -53,10 +55,11 @@ sequenceDiagram
     Note over WH, MCP: All components run locally<br/>except Twilio/WhatsApp services
 ```
 
-Next steps:
+This project uses Langflow running in the Docker:
 
-- Return details from project notes.
-- Download and search archived projects.
+```bash
+docker run -d --name langflow-app -p 7860:7860 langflowai/langflow:latest
+```
 
 ## Implementation details
 
