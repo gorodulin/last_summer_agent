@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-MCP Projector Server - A minimal FastMCP server template
-
-This server demonstrates a basic MCP server using HTTP transport
-that responds with "hello world" functionality.
-"""
 
 import json
 import os
