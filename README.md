@@ -15,47 +15,42 @@ It can:
 
 ## System Architecture
 
-```plantuml
-@startuml WhatsApp Voice Agent Flow
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant WA as WhatsApp
+    participant T as Twilio
+    participant WH as Webhook<br/>(whatsapp_audio_link_recever.py)
+    participant LF as Langflow Pipeline
+    participant W as Whisper Component<br/>(Speech-to-Text)
+    participant LLM as LLM Agent
+    participant MCP as MCP Projector<br/>(mcp_projector.py)
+    participant TS as Twilio Send Component<br/>(WhatsApp Response)
 
-!theme plain
+    U->>WA: Voice message with prompt
+    WA->>T: Audio message
+    T->>WH: POST webhook with audio URL
+    Note right of T: Twilio webhook configured<br/>to point to ngrok tunnel
 
-actor User as U
-participant "WhatsApp" as WA
-participant "Twilio" as T
-participant "Webhook\n(whatsapp_audio_link_recever.py)" as WH
-participant "Langflow Pipeline" as LF
-participant "Whisper Component\n(Speech-to-Text)" as W
-participant "LLM Agent" as LLM
-participant "MCP Projector\n(mcp_projector.py)" as MCP
-participant "Twilio Send Component\n(WhatsApp Response)" as TS
+    WH->>LF: Trigger Langflow pipeline<br/>with audio URL parameter
 
-U -> WA: Voice message with prompt
-WA -> T: Audio message
-T -> WH: POST webhook with audio URL
-note right of T: Twilio webhook configured\nto point to ngrok tunnel
+    LF->>W: Pass audio URL
+    W->>W: Download audio file
+    W->>W: Whisper API<br/>(Speech-to-Text)
+    W->>LLM: Text prompt
 
-WH -> LF: Trigger Langflow pipeline\nwith audio URL parameter
+    LLM->>MCP: Request project details
+    Note right of MCP: Custom MCP server<br/>provides project information
 
-LF -> W: Pass audio URL
-W -> W: Download audio file
-W -> W: Whisper API\n(Speech-to-Text)
-W -> LLM: Text prompt
+    MCP->>LLM: Project data
+    LLM->>LLM: Process request<br/>with project context
+    LLM->>TS: Generated response text
 
-LLM -> MCP: Request project details
-note right of MCP: Custom MCP server\nprovides project information
+    TS->>T: Send WhatsApp message
+    T->>WA: Text response
+    WA->>U: Answer delivered
 
-MCP -> LLM: Project data
-LLM -> LLM: Process request\nwith project context
-LLM -> TS: Generated response text
-
-TS -> T: Send WhatsApp message
-T -> WA: Text response
-WA -> U: Answer delivered
-
-note over WH, MCP: All components run locally\nexcept Twilio/WhatsApp services
-
-@enduml
+    Note over WH, MCP: All components run locally<br/>except Twilio/WhatsApp services
 ```
 
 Next steps:
